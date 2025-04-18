@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Guessing Game</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      #controls {
+        background: rgba(0, 0, 0, 0.1);
+        padding: 0.5rem;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 10;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      #controls input,
+      #controls button {
+        padding: 0.5rem;
+        margin: 0.25rem;
+        border: none;
+        border-radius: 0.5rem;
+      }
+      #controls input {
+        flex-grow: 1;
+      }
+      #controls button {
+        background: #333;
+        color: #fff;
+        cursor: pointer;
+      }
+      #messages {
+        list-style-type: none;
+        margin: 0;
+        padding: 1rem;
+        flex-grow: 1;
+        overflow-y: auto;
+        margin-top: 120px; /* Adjust based on #controls height */
+        margin-bottom: 60px; /* Adjust based on #form height */
+      }
+      #messages > li {
+        padding: 0.5rem 1rem;
+      }
+      #messages > li:nth-child(odd) {
+        background: #efefef;
+      }
+      #form {
+        background: rgba(0, 0, 0, 0.15);
+        padding: 0.25rem;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        height: 3rem;
+        box-sizing: border-box;
+        z-index: 10;
+      }
+      #input {
+        border: none;
+        padding: 0 1rem;
+        flex-grow: 1;
+        border-radius: 2rem;
+        margin: 0.25rem;
+      }
+      #input:focus {
+        outline: none;
+      }
+      #form > button {
+        background: #333;
+        border: none;
+        padding: 0 1rem;
+        margin: 0.25rem;
+        border-radius: 3px;
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="controls">
+      <input id="username" placeholder="Username" autocomplete="off" />
+      <input id="sessionId" placeholder="Session ID" autocomplete="off" />
+      <button onclick="joinSession()">Join Session</button>
+      <input id="question" placeholder="Question" autocomplete="off" />
+      <input id="answer" placeholder="Answer" autocomplete="off" />
+      <button onclick="createSession()">Create Session</button>
+      <button onclick="setNewQuestion()">Set New Question</button>
+      <button onclick="startSession()">Start Game</button>
+      <button onclick="leaveSession()">Leave Session</button>
+    </div>
+    <ul id="messages"></ul>
+    <form id="form" action="">
+      <input id="input" placeholder="Enter your guess" autocomplete="off" /><button>Guess</button>
+    </form>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+      const socket = io();
+      const form = document.getElementById('form');
+      const input = document.getElementById('input');
+      const usernameInput = document.getElementById('username');
+      const sessionIdInput = document.getElementById('sessionId');
+      const questionInput = document.getElementById('question');
+      const answerInput = document.getElementById('answer');
+      const messages = document.getElementById('messages');
+
+      function addMessage(msg) {
+        const item = document.createElement('li');
+        item.textContent = msg;
+        messages.appendChild(item);
+        messages.scrollTop = messages.scrollHeight; // Auto-scroll to bottom
+      }
+
+      function createSession() {
+        const username = usernameInput.value;
+        const question = questionInput.value;
+        const answer = answerInput.value;
+        if (!username || !question || !answer) {
+          addMessage('Please enter username, question, and answer');
+          return;
+        }
+        socket.emit('createSession', { username, question, answer });
+      }
+
+      function joinSession() {
+        const username = usernameInput.value;
+        const sessionId = sessionIdInput.value;
+        if (!username || !sessionId) {
+          addMessage('Please enter username and session ID');
+          return;
+        }
+        socket.emit('joinSession', { sessionId, username });
+      }
+
+      function startSession() {
+        const sessionId = sessionIdInput.value;
+        if (!sessionId) {
+          addMessage('Please enter session ID');
+          return;
+        }
+        socket.emit('startSession', { sessionId });
+      }
+
+      function setNewQuestion() {
+        const sessionId = sessionIdInput.value;
+        const question = questionInput.value;
+        const answer = answerInput.value;
+        if (!sessionId || !question || !answer) {
+          addMessage('Please enter session ID, question, and answer');
+          return;
+        }
+        socket.emit('setNewQuestion', { sessionId, question, answer });
+      }
+
+      function leaveSession() {
+        const sessionId = sessionIdInput.value;
+        if (!sessionId) {
+          addMessage('Please enter session ID');
+          return;
+        }
+        socket.emit('leaveSession', { sessionId });
+      }
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const guess = input.value;
+        const username = usernameInput.value;
+        const sessionId = sessionIdInput.value;
+        if (!guess || !username || !sessionId) {
+          addMessage('Please enter guess, username, and session ID');
+          return;
+        }
+        socket.emit('submitGuess', { sessionId, username, guess });
+        input.value = '';
+      });
+
+      socket.on('sessionCreated', (data) => {
+        sessionIdInput.value = data.sessionId;
+        addMessage(`Session created with ID: ${data.sessionId}`);
+      });
+
+      socket.on('playerUpdate', (data) => {
+        addMessage(
+          `Players: ${data.players.join(', ')} (Total: ${data.playerCount}) | Game Master: ${
+            data.gameMaster
+          } | Status: ${data.status}`
+        );
+      });
+
+      socket.on('gameStarted', (data) => {
+        addMessage(`Game started! Question: ${data.question}`);
+      });
+
+      socket.on('guessResult', (data) => {
+        addMessage(data.correct ? 'Correct guess!' : `Incorrect guess. Attempts used: ${data.attempts}/3`);
+      });
+
+      socket.on('noAttemptsLeft', (data) => {
+        addMessage(data.message);
+      });
+
+      socket.on('gameEnded', (data) => {
+        const scores = data.scores.map((s) => `${s.username}: ${s.score}`).join(', ');
+        addMessage(
+          `Game ended! Winner: ${data.winner || 'None'}, Answer: ${data.answer}, Scores: ${scores}, New Game Master: ${
+            data.newGameMaster
+          }`
+        );
+      });
+
+      socket.on('message', (msg) => {
+        addMessage(msg);
+      });
+
+      socket.on('error', (data) => {
+        addMessage(`Error: ${data.message}`);
+      });
+    </script>
+  </body>
+</html>
