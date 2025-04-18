@@ -12,7 +12,7 @@ export class GameService {
     answer: string,
   ) {
     if (!username || !question || !answer) {
-      throw new Error('username, question or answer not found');
+      throw new Error('Username, question, or answer not found');
     }
     const sessionId = Math.random().toString(36).substring(7);
 
@@ -32,13 +32,13 @@ export class GameService {
     const session = this.sessions[sessionId];
 
     if (!session) {
-      throw new Error('session not found');
+      throw new Error('Session not found');
     }
     if (session.status !== 'waiting') {
       throw new Error('Cannot join: session already started or ended');
     }
     if (session.players.find((p) => p.username === username)) {
-      throw new Error('username Alreay exist');
+      throw new Error('Username already exists');
     }
 
     session.players.push({ socketId, username, attempts: 0, score: 0 });
@@ -50,27 +50,20 @@ export class GameService {
     const session = this.sessions[sessionId];
 
     if (!session) {
-      throw new Error('session not found');
+      throw new Error('Session not found');
     }
-
     if (session.gameMasterId !== socketId) {
-      throw new Error('only the gamemaster can start the session');
+      throw new Error('Only the game master can start the session');
     }
     if (session.status !== 'waiting') {
-      throw new Error('session already started or ended');
+      throw new Error('Session already started or ended');
     }
     if (session.players.length < 3) {
-      throw new Error('minimum of 3 players needed to start session');
+      throw new Error('Minimum of 3 players needed to start session');
     }
 
     session.status = 'active';
     session.startedAt = Date.now();
-    setTimeout(() => {
-      if (this.sessions[sessionId]?.status === 'active') {
-        this.endSession(sessionId, null);
-      }
-    }, 60 * 1000);
-
     return session;
   }
 
@@ -83,53 +76,58 @@ export class GameService {
     const session = this.sessions[sessionId];
 
     if (!session) {
-      throw new Error('session not found');
+      throw new Error('Session not found');
     }
-
     if (session.status !== 'active') {
-      throw new Error('the session is not active');
+      throw new Error('The session is not active');
     }
     const player = session.players.find((p) => p.socketId === socketId);
 
     if (!player || player.username !== username) {
-      throw new Error('player not in session');
+      throw new Error('Player not in session');
     }
-
     if (player.attempts >= 3) {
       throw new Error('No attempts remaining');
     }
     player.attempts += 1;
 
-    if (guess.toLowerCase() === session.answer.toLocaleLowerCase()) {
+    const correct = guess.toLowerCase() === session.answer.toLowerCase();
+    if (correct) {
       player.score += 10;
       session.winnerId = socketId;
-      this.endSession(sessionId, username);
-      return { correct: true, winner: username, attempts: player.attempts };
     }
 
-    return { correct: false, attempts: player.attempts };
+    return { correct, winner: correct ? username : null, attempts: player.attempts, guess };
   }
 
   endSession(sessionId: string, winner: string | null) {
     const session = this.sessions[sessionId];
-
     if (!session) {
       return;
     }
 
     session.status = 'ended';
+    const scores = session.players.map((p) => ({
+      username: p.username,
+      score: p.score,
+    }));
+
+    // Select a new game master randomly from non-game-master players
+    const otherPlayers = session.players.filter(
+      (p) => p.socketId !== session.gameMasterId,
+    );
+    const newGameMaster =
+      otherPlayers.length > 0
+        ? otherPlayers[Math.floor(Math.random() * otherPlayers.length)]
+        : null;
+
     const result = {
       winner,
       answer: session.answer,
-      score: session.players.map((p) => ({
-        username: p.username,
-        score: p.score,
-      })),
+      scores,
+      newGameMaster: newGameMaster ? newGameMaster.username : null,
     };
 
-    const newGameMaster =
-      session.players.find((p) => p.socketId !== session.gameMasterId) ||
-      session.players[0];
     if (newGameMaster) {
       session.gameMasterId = newGameMaster.socketId;
       session.gameMasterusername = newGameMaster.username;
@@ -139,7 +137,10 @@ export class GameService {
       session.winnerId = undefined;
       session.startedAt = undefined;
       session.players.forEach((p) => (p.attempts = 0));
+    } else {
+      delete this.sessions[sessionId];
     }
+
     return result;
   }
 
@@ -150,7 +151,6 @@ export class GameService {
     }
     session.players = session.players.filter((p) => p.socketId !== socketId);
     if (session.gameMasterId === socketId && session.players.length > 0) {
-      // Reassign game master if the leaving player was the game master
       const newGameMaster = session.players[0];
       session.gameMasterId = newGameMaster.socketId;
       session.gameMasterusername = newGameMaster.username;

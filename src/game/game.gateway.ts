@@ -6,7 +6,6 @@ import {
 import { Server, Socket } from 'socket.io';
 import { GameService } from './game.service';
 
-
 @WebSocketGateway({ cors: true })
 export class GameGateway {
   @WebSocketServer()
@@ -46,8 +45,12 @@ export class GameGateway {
         payload.username,
       );
       client.join(`session_${session.id}`);
-      this.broadcastPlayerUpdate(session.id);
+      this.server.to(`session_${session.id}`).emit('playerJoined', {
+        username: payload.username,
+        players: session.players.map((p) => p.username),
+      });
       client.emit('message', `Joined session ${session.id}`);
+      this.broadcastPlayerUpdate(session.id);
     } catch (error) {
       client.emit('error', { message: error.message });
     }
@@ -56,17 +59,34 @@ export class GameGateway {
   @SubscribeMessage('startSession')
   handleStartSession(client: Socket, payload: { sessionId: string }) {
     try {
-      const session = this.gameService.startSession(
-        payload.sessionId,
-        client.id,
-      );
+      const session = this.gameService.startSession(payload.sessionId, client.id);
       this.server
         .to(`session_${session.id}`)
         .emit('gameStarted', { question: session.question });
       this.broadcastPlayerUpdate(session.id);
-      this.server
-        .to(`session_${session.id}`)
-        .emit('message', `Game started! Question: ${session.question}`);
+      setTimeout(() => {
+        const currentSession = this.gameService.getSession(payload.sessionId);
+        if (currentSession?.status === 'active') {
+          const result = this.gameService.endSession(payload.sessionId, null);
+          if (result) {
+            this.server.to(`session_${payload.sessionId}`).emit('gameEnded', result);
+            if (result.newGameMaster) {
+              const newGameMasterPlayer = currentSession.players.find(
+                (p) => p.username === result.newGameMaster,
+              );
+              if (newGameMasterPlayer) {
+                this.server
+                  .to(newGameMasterPlayer.socketId)
+                  .emit('gameMasterNotification', {
+                    gameMaster: result.newGameMaster,
+                    message:
+                      'You are the new Game Master! Set a new question or start a new session.',
+                  });
+              }
+            }
+          }
+        }
+      }, 60 * 1000);
     } catch (error) {
       client.emit('error', { message: error.message });
     }
@@ -84,40 +104,44 @@ export class GameGateway {
         payload.username,
         payload.guess,
       );
+      // Broadcast guess details to all players
+      this.server.to(`session_${payload.sessionId}`).emit('guessMade', {
+        username: payload.username,
+        guess: payload.guess,
+        correct: result.correct,
+        attempts: result.attempts,
+      });
+      
       if (result.correct) {
         const session = this.gameService.getSession(payload.sessionId);
-        this.server.to(`session_${payload.sessionId}`).emit('gameEnded', {
-          winner: result.winner,
-          answer: session.answer,
-          scores: session.players.map((p) => ({
-            username: p.username,
-            score: p.score,
-          })),
-          newGameMaster: session.gameMasterusername,
-        });
-        this.server
-          .to(`session_${payload.sessionId}`)
-          .emit(
-            'message',
-            `Game ended! Winner: ${result.winner}, Answer: ${session.answer}`,
+        const endResult = this.gameService.endSession(
+          payload.sessionId,
+          result.winner,
+        );
+        this.server.to(`session_${payload.sessionId}`).emit('gameEnded', endResult);
+        if (endResult && endResult.newGameMaster) {
+          const newGameMasterPlayer = session.players.find(
+            (p) => endResult && p.username === endResult.newGameMaster,
           );
+          if (newGameMasterPlayer) {
+            this.server
+              .to(newGameMasterPlayer.socketId)
+              .emit('gameMasterNotification', {
+                gameMaster: endResult?.newGameMaster,
+                message:
+                  'You are the new Game Master! Set a new question or start a new session.',
+              });
+          }
+        }
         if (client.id === session.winnerId) {
           client.emit('message', 'You have won!');
         }
-        this.broadcastPlayerUpdate(payload.sessionId);
       } else {
         client.emit('guessResult', result);
-        client.emit(
-          'message',
-          result.correct
-            ? 'Correct guess!'
-            : `Incorrect guess. Attempts used: ${result.attempts}/3`,
-        );
         if (result.attempts >= 3) {
           client.emit('noAttemptsLeft', {
             message: 'No more attempts remaining',
           });
-          client.emit('message', 'No more attempts remaining');
         }
       }
     } catch (error) {
@@ -149,10 +173,7 @@ export class GameGateway {
   @SubscribeMessage('leaveSession')
   handleLeaveSession(client: Socket, payload: { sessionId: string }) {
     try {
-      const session = this.gameService.leaveSession(
-        payload.sessionId,
-        client.id,
-      );
+      const session = this.gameService.leaveSession(payload.sessionId, client.id);
       if (session) {
         this.broadcastPlayerUpdate(payload.sessionId);
         this.server

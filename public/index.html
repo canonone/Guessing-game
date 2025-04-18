@@ -3,23 +3,23 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Guessing Game</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
     <style>
       * {
         box-sizing: border-box;
       }
       body {
         margin: 0;
-        font-family: 'Inter', sans-serif;
-        background: linear-gradient(135deg, #0f172a, #1e293b);
-        color: #e2e8f0;
+        font-family: 'Source Sans Pro', sans-serif;
+        background: linear-gradient(135deg, #1e3a8a, #065f46);
+        color: #e7e5e4;
         height: 100vh;
         display: flex;
         flex-direction: column;
         overflow: hidden;
       }
       #controls {
-        background: rgba(15, 23, 42, 0.9);
+        background: rgba(17, 24, 39, 0.95);
         padding: 1rem;
         position: fixed;
         top: 0;
@@ -29,56 +29,75 @@
         display: flex;
         flex-wrap: wrap;
         gap: 0.5rem;
-        border-bottom: 1px solid #3b82f6;
-        backdrop-filter: blur(10px);
+        border-bottom: 1px solid #6b7280;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
       }
       #controls input {
         padding: 0.75rem;
         margin: 0.25rem;
-        border: 1px solid #475569;
+        border: 1px solid #6b7280;
         border-radius: 6px;
-        background: #1e293b;
-        color: #e2e8f0;
+        background: #1f2937;
+        color: #e7e5e4;
         font-size: 1rem;
+        font-family: 'Lora', serif;
         flex-grow: 1;
         transition: border-color 0.3s, box-shadow 0.3s;
       }
       #controls input:focus {
         outline: none;
-        border-color: #3b82f6;
-        box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+        border-color: #10b981;
+        box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
       }
       #controls button {
         padding: 0.75rem 1.5rem;
         margin: 0.25rem;
         border: none;
         border-radius: 6px;
-        background: linear-gradient(45deg, #3b82f6, #60a5fa);
-        color: #fff;
+        background: linear-gradient(45deg, #4b5563, #6b7280);
+        color: #e7e5e4;
         font-size: 1rem;
         font-weight: 600;
+        font-family: 'Source Sans Pro', sans-serif;
         cursor: pointer;
         transition: transform 0.2s, box-shadow 0.2s;
       }
       #controls button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+        background: linear-gradient(45deg, #10b981, #34d399);
+      }
+      #countdown {
+        position: fixed;
+        top: 70px;
+        left: 1rem;
+        background: #374151;
+        color: #10b981;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 1.2rem;
+        font-family: 'Lora', serif;
+        font-weight: 600;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        display: none;
+        z-index: 9;
       }
       #leaderboard {
-        background: rgba(15, 23, 42, 0.9);
+        background: rgba(17, 24, 39, 0.95);
         padding: 0.75rem;
-        margin-top: 100px; /* Below #controls */
-        border-bottom: 1px solid #475569;
+        margin-top: 80px;
         display: flex;
         flex-wrap: wrap;
-        gap: 1rem;
+        gap: 0.75rem;
+        border-bottom: 1px solid #6b7280;
         font-size: 0.9rem;
+        font-family: 'Lora', serif;
       }
       #leaderboard div {
-        background: #1e293b;
+        background: #374151;
         padding: 0.5rem 1rem;
         border-radius: 4px;
-        color: #93c5fd;
+        color: #d1d5db;
         font-weight: 600;
       }
       #messages {
@@ -86,24 +105,61 @@
         margin: 0;
         padding: 1rem;
         flex-grow: 1;
-        overflow-y: auto;
-        margin-top: 140px; /* Below #controls + #leaderboard */
-        margin-bottom: 60px; /* Space for #form */
+        overflow-y: scroll;
+        margin-top: 110px;
+        margin-bottom: 60px;
+        display: flex;
+        flex-direction: column;
+        scrollbar-width: thin;
+        scrollbar-color: #6b7280 #1f2937;
+      }
+      #messages::-webkit-scrollbar {
+        width: 8px;
+      }
+      #messages::-webkit-scrollbar-track {
+        background: #1f2937;
+        border-radius: 4px;
+      }
+      #messages::-webkit-scrollbar-thumb {
+        background: #6b7280;
+        border-radius: 4px;
+      }
+      #messages::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af;
       }
       #messages li {
         padding: 0.75rem 1rem;
         margin: 0.5rem 0;
-        background: rgba(30, 41, 59, 0.5);
-        border-radius: 6px;
-        color: #e2e8f0;
+        border-radius: 8px;
+        color: #1f2937;
         font-size: 1rem;
-        animation: slideIn 0.3s ease-out;
+        font-family: 'Lora', serif;
+        animation: fadeIn 0.4s ease-out;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        max-width: 70%;
+        position: relative;
       }
-      #messages li:nth-child(odd) {
-        background: rgba(30, 41, 59, 0.7);
+      #messages li.system {
+        background: #d1fae5;
+        margin-left: 5%;
+        border-left: 3px solid #10b981;
+      }
+      #messages li.player {
+        background: #e0f2fe;
+        margin-right: 5%;
+        margin-left: auto;
+        border-right: 3px solid #3b82f6;
+      }
+      #messages li.player::before {
+        content: attr(data-username);
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #1f2937;
+        display: block;
+        margin-bottom: 0.25rem;
       }
       #form {
-        background: rgba(15, 23, 42, 0.9);
+        background: rgba(17, 24, 39, 0.95);
         padding: 0.5rem;
         position: fixed;
         bottom: 0;
@@ -112,49 +168,52 @@
         display: flex;
         height: 3.5rem;
         z-index: 10;
-        border-top: 1px solid #3b82f6;
-        backdrop-filter: blur(10px);
+        border-top: 1px solid #6b7280;
+        box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.2);
       }
       #input {
-        border: 1px solid #475569;
+        border: 1px solid #6b7280;
         padding: 0 1rem;
         flex-grow: 1;
         border-radius: 6px;
         margin: 0.25rem;
-        background: #1e293b;
-        color: #e2e8f0;
+        background: #1f2937;
+        color: #e7e5e4;
         font-size: 1rem;
+        font-family: 'Lora', serif;
         transition: border-color 0.3s, box-shadow 0.3s;
       }
       #input:focus {
         outline: none;
-        border-color: #3b82f6;
-        box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+        border-color: #10b981;
+        box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
       }
       #form > button {
-        background: linear-gradient(45deg, #10b981, #34d399);
+        background: linear-gradient(45deg, #4b5563, #6b7280);
         border: none;
         padding: 0 1.5rem;
         margin: 0.25rem;
         border-radius: 6px;
-        color: #fff;
+        color: #e7e5e4;
         font-size: 1rem;
         font-weight: 600;
+        font-family: 'Source Sans Pro', sans-serif;
         cursor: pointer;
         transition: transform 0.2s, box-shadow 0.2s;
       }
       #form > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+        background: linear-gradient(45deg, #10b981, #34d399);
       }
-      @keyframes slideIn {
+      @keyframes fadeIn {
         from {
           opacity: 0;
-          transform: translateX(-10px);
+          transform: translateY(5px);
         }
         to {
           opacity: 1;
-          transform: translateX(0);
+          transform: translateY(0);
         }
       }
       @media (max-width: 600px) {
@@ -166,12 +225,19 @@
           width: 100%;
           margin: 0.25rem 0;
         }
+        #countdown {
+          top: 110px;
+        }
         #leaderboard {
           flex-direction: column;
           gap: 0.5rem;
+          margin-top: 120px;
         }
         #messages {
-          margin-top: 200px; /* Adjust for taller #controls on mobile */
+          margin-top: 150px;
+        }
+        #messages li {
+          max-width: 85%;
         }
       }
     </style>
@@ -188,146 +254,13 @@
       <button onclick="startSession()">Start Game</button>
       <button onclick="leaveSession()">Leave Session</button>
     </div>
+    <div id="countdown">00:60</div>
     <div id="leaderboard"></div>
     <ul id="messages"></ul>
     <form id="form" action="">
       <input id="input" placeholder="Enter your guess" autocomplete="off" /><button>Guess</button>
     </form>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script>
-      const socket = io();
-      const form = document.getElementById('form');
-      const input = document.getElementById('input');
-      const usernameInput = document.getElementById('username');
-      const sessionIdInput = document.getElementById('sessionId');
-      const questionInput = document.getElementById('question');
-      const answerInput = document.getElementById('answer');
-      const messages = document.getElementById('messages');
-      const leaderboard = document.getElementById('leaderboard');
-
-      function addMessage(msg) {
-        const item = document.createElement('li');
-        item.textContent = msg;
-        messages.appendChild(item);
-        messages.scrollTop = messages.scrollHeight;
-      }
-
-      function updateLeaderboard(players, scores) {
-        leaderboard.innerHTML = '';
-        players.forEach((player, index) => {
-          const score = scores ? scores.find(s => s.username === player)?.score || 0 : 0;
-          const playerDiv = document.createElement('div');
-          playerDiv.textContent = `${player}: ${score}`;
-          leaderboard.appendChild(playerDiv);
-        });
-      }
-
-      function createSession() {
-        const username = usernameInput.value;
-        const question = questionInput.value;
-        const answer = answerInput.value;
-        if (!username || !question || !answer) {
-          addMessage('Please enter username, question, and answer');
-          return;
-        }
-        socket.emit('createSession', { username, question, answer });
-      }
-
-      function joinSession() {
-        const username = usernameInput.value;
-        const sessionId = sessionIdInput.value;
-        if (!username || !sessionId) {
-          addMessage('Please enter username and session ID');
-          return;
-        }
-        socket.emit('joinSession', { sessionId, username });
-      }
-
-      function startSession() {
-        const sessionId = sessionIdInput.value;
-        if (!sessionId) {
-          addMessage('Please enter session ID');
-          return;
-        }
-        socket.emit('startSession', { sessionId });
-      }
-
-      function setNewQuestion() {
-        const sessionId = sessionIdInput.value;
-        const question = questionInput.value;
-        const answer = answerInput.value;
-        if (!sessionId || !question || !answer) {
-          addMessage('Please enter session ID, question, and answer');
-          return;
-        }
-        socket.emit('setNewQuestion', { sessionId, question, answer });
-      }
-
-      function leaveSession() {
-        const sessionId = sessionIdInput.value;
-        if (!sessionId) {
-          addMessage('Please enter session ID');
-          return;
-        }
-        socket.emit('leaveSession', { sessionId });
-      }
-
-      form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const guess = input.value;
-        const username = usernameInput.value;
-        const sessionId = sessionIdInput.value;
-        if (!guess || !username || !sessionId) {
-          addMessage('Please enter guess, username, and session ID');
-          return;
-        }
-        socket.emit('submitGuess', { sessionId, username, guess });
-        input.value = '';
-      });
-
-      socket.on('sessionCreated', (data) => {
-        sessionIdInput.value = data.sessionId;
-        addMessage(`Session created with ID: ${data.sessionId}`);
-      });
-
-      socket.on('playerUpdate', (data) => {
-        addMessage(
-          `Players: ${data.players.join(', ')} (Total: ${data.playerCount}) | Game Master: ${
-            data.gameMaster
-          } | Status: ${data.status}`
-        );
-        updateLeaderboard(data.players, null);
-      });
-
-      socket.on('gameStarted', (data) => {
-        addMessage(`Game started! Question: ${data.question}`);
-      });
-
-      socket.on('guessResult', (data) => {
-        addMessage(data.correct ? 'Correct guess!' : `Incorrect guess. Attempts used: ${data.attempts}/3`);
-      });
-
-      socket.on('noAttemptsLeft', (data) => {
-        addMessage(data.message);
-      });
-
-      socket.on('gameEnded', (data) => {
-        const scores = data.scores.map((s) => `${s.username}: ${s.score}`).join(', ');
-        addMessage(
-          `Game ended! Winner: ${data.winner || 'None'}, Answer: ${data.answer}, Scores: ${scores}, New Game Master: ${
-            data.newGameMaster
-          }`
-        );
-        updateLeaderboard(data.scores.map(s => s.username), data.scores);
-      });
-
-      socket.on('message', (msg) => {
-        addMessage(msg);
-      });
-
-      socket.on('error', (data) => {
-        addMessage(`Error: ${data.message}`);
-      });
-    </script>
+    <script src="/script.js"></script>
   </body>
 </html>
